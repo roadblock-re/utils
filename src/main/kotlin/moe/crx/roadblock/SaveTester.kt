@@ -2,7 +2,7 @@ package moe.crx.roadblock
 
 import moe.crx.roadblock.game.GameLayer
 import moe.crx.roadblock.io.ObjectIO.readObject
-import moe.crx.roadblock.objects.game.SerializationVersion
+import moe.crx.roadblock.serialization.SerializationVersion
 import moe.crx.roadblock.rpc.auth.LoginResponse
 import moe.crx.roadblock.utils.sink
 import java.io.File

@@ -1,7 +1,7 @@
 package moe.crx.roadblock
 
 import moe.crx.roadblock.io.ObjectIO.readObject
-import moe.crx.roadblock.objects.game.SerializationVersion
+import moe.crx.roadblock.serialization.SerializationVersion
 import moe.crx.roadblock.push.PushMessagePacket
 import moe.crx.roadblock.rpc.base.RequestPacket
 import moe.crx.roadblock.rpc.base.ResponsePacket
