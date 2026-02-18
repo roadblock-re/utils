@@ -2,7 +2,9 @@ package moe.crx.roadblock
 
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
-import moe.crx.roadblock.utils.*
+import moe.crx.roadblock.core.scope
+import moe.crx.roadblock.core.utils.fromHexString
+import moe.crx.roadblock.core.utils.toBigEndianBytes
 import org.bouncycastle.crypto.engines.ChaCha7539Engine
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
