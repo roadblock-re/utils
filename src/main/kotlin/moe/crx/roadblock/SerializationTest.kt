@@ -70,7 +70,7 @@ fun main() {
         Apple(13),
     )
 
-    val protocol = RoadblockFormat(SerializationVersion(47, 1, 0))
+    val protocol = RoadblockFormat(SerializationVersion(47u, 1u, 0u))
 
     val bytes = protocol.encodeToByteArray(test)
     println(bytes.toHexString())

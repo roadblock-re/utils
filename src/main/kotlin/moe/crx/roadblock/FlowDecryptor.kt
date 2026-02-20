@@ -16,7 +16,6 @@ import java.io.DataInputStream
 import java.io.File
 import java.io.InputStream
 import java.security.MessageDigest
-import kotlin.collections.plus
 
 fun ByteArray.toBigEndianInt(): Int {
     val bytes = take(4).map { it.toInt() and 0xFF }.reversed()
@@ -208,10 +207,14 @@ fun processHcy(filePath: String) {
         if (counter == 1) {
             continue
         } else if (counter == 2) {
-            roomId = Json.parseToJsonElement(String(packet.transfer.toByteArray())).jsonObject["room_id"]?.jsonPrimitive?.contentOrNull ?: ""
+            roomId =
+                Json.parseToJsonElement(String(packet.transfer.toByteArray())).jsonObject["room_id"]?.jsonPrimitive?.contentOrNull
+                    ?: ""
             continue
         } else if (counter == 3) {
-            slot = Json.parseToJsonElement(String(packet.transfer.toByteArray())).jsonObject["slot"]?.jsonPrimitive?.contentOrNull ?: ""
+            slot =
+                Json.parseToJsonElement(String(packet.transfer.toByteArray())).jsonObject["slot"]?.jsonPrimitive?.contentOrNull
+                    ?: ""
             setupEncryption()
             continue
         }
@@ -229,6 +232,7 @@ fun processHcy(filePath: String) {
     File(exported, "encrypted_server.in").writeBytes(serverData)
 }
 
+@Suppress("UNCHECKED_CAST")
 fun processFlows(fileName: String) {
     exported.mkdirs()
     exported.listFiles()?.forEach { it.delete() }
@@ -237,9 +241,7 @@ fun processFlows(fileName: String) {
     var clientData = ByteArray(0)
 
     val flows = File(fileName).readBytes()
-    var parsed = KtNetString.parseList(flows).filter {
-        it is Map<*, *>
-    }.let {
+    var parsed = KtNetString.parseList(flows).filterIsInstance<Map<*, *>>().let {
         it as List<Map<String, Any?>>
     }
     parsed = parsed.filter {
@@ -253,24 +255,36 @@ fun processFlows(fileName: String) {
     }
     val messages = parsed.last()["messages"] as List<List<Any?>>
     messages.forEachIndexed { index, it ->
-        if (index == 0) {
-            File(exported, "unencrypted_$index").writeBytes(it[1] as ByteArray)
-            return@forEachIndexed
-        } else if (index == 1) {
-            File(exported, "unencrypted_$index").writeBytes(it[1] as ByteArray)
-            roomId = Json.parseToJsonElement((it[1] as ByteArray).toString(Charsets.UTF_8)).jsonObject["room_id"]?.jsonPrimitive?.contentOrNull ?: ""
-            return@forEachIndexed
-        } else if (index == 2) {
-            File(exported, "unencrypted_$index").writeBytes(it[1] as ByteArray)
-            slot = Json.parseToJsonElement((it[1] as ByteArray).toString(Charsets.UTF_8)).jsonObject["slot"]?.jsonPrimitive?.contentOrNull ?: ""
-            setupEncryption()
-            return@forEachIndexed
-        }
+        when {
+            index == 0 -> {
+                File(exported, "unencrypted_0").writeBytes(it[1] as ByteArray)
+                return@forEachIndexed
+            }
 
-        if (!(it[0] as Boolean)) {
-            serverData += (it[1] as ByteArray)
-        } else {
-            clientData += (it[1] as ByteArray)
+            index == 1 -> {
+                File(exported, "unencrypted_1").writeBytes(it[1] as ByteArray)
+                roomId =
+                    Json.parseToJsonElement((it[1] as ByteArray).toString(Charsets.UTF_8)).jsonObject["room_id"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                return@forEachIndexed
+            }
+
+            index == 2 -> {
+                File(exported, "unencrypted_2").writeBytes(it[1] as ByteArray)
+                slot =
+                    Json.parseToJsonElement((it[1] as ByteArray).toString(Charsets.UTF_8)).jsonObject["slot"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                setupEncryption()
+                return@forEachIndexed
+            }
+
+            !(it[0] as Boolean) -> {
+                serverData += (it[1] as ByteArray)
+            }
+
+            else -> {
+                clientData += (it[1] as ByteArray)
+            }
         }
     }
 
@@ -299,11 +313,13 @@ fun processFlowPacket(input: InputStream, index: Int, fromClient: Boolean): Bool
         val decompressedLength = bytes.drop(4).take(4).toByteArray().toBigEndianInt()
         val compressedBytes = bytes.drop(8).toByteArray()
 
-        val calculatedHash = xxHash32.hash(compressedBytes, 0, compressedBytes.size, if (fromClient) {
-            bytes.drop(4).take(4).toByteArray().toBigEndianInt()
-        } else {
-            bytes.drop(4).take(4).toByteArray().toLittleEndianInt()
-        })
+        val calculatedHash = xxHash32.hash(
+            compressedBytes, 0, compressedBytes.size, if (fromClient) {
+                bytes.drop(4).take(4).toByteArray().toBigEndianInt()
+            } else {
+                bytes.drop(4).take(4).toByteArray().toLittleEndianInt()
+            }
+        )
 
         if (hash != calculatedHash) {
             // FIXME
