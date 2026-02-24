@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 import moe.crx.roadblock.game.GameLayer
 import moe.crx.roadblock.game.serialization.RoadblockFormat
 import moe.crx.roadblock.game.serialization.SerializationVersion
-import moe.crx.roadblock.rpc.auth.LoginResponse
+import moe.crx.roadblock.rpc.base.GameLoginResponse
 import java.io.File
 
 val json = Json {
@@ -26,7 +26,7 @@ fun main() {
     println("Dump file path: ")
     val path = readln()
     val bytes = File(path).readBytes()
-    val response = format.decodeFromByteArray<LoginResponse>(bytes)
+    val response = format.decodeFromByteArray<GameLoginResponse>(bytes)
     println()
     println(response)
 
