@@ -1,6 +1,7 @@
 package moe.crx.roadblock
 
 import kotlinx.serialization.decodeFromByteArray
+import moe.crx.roadblock.game.GameLayer
 import moe.crx.roadblock.game.serialization.RoadblockFormat
 import moe.crx.roadblock.game.serialization.SerializationVersion
 import moe.crx.roadblock.rpc.base.PushMessagePacket
@@ -11,6 +12,7 @@ import kotlin.math.min
 
 fun main() {
     val ver = SerializationVersion(47u, 1u, 0u)
+    val layer = GameLayer(".", ver)
     val format = RoadblockFormat(ver)
     val requests = mutableMapOf<UShort, MutableList<File>>()
     val responses = mutableMapOf<UShort, MutableList<File>>()
@@ -37,12 +39,19 @@ fun main() {
         }
     }
 
-    listOf(requests, responses, special).forEach { dict ->
+    listOf(requests, responses).forEach { dict ->
         dict.forEach { (packetId, files) ->
-            println("%02x".format(packetId.toInt()) + ": " + files.joinToString())
+            println(layer.handlers[packetId.toInt()]?.requestName + " %02x".format(packetId.toInt()) + ": " + files.joinToString())
         }
         println()
         println()
         println()
     }
+
+    special.forEach { (packetId, files) ->
+        println("%02x".format(packetId.toInt()) + ": " + files.joinToString())
+    }
+    println()
+    println()
+    println()
 }
