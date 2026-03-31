@@ -23,7 +23,7 @@ fun main() {
     val layer = GameLayer(".", ver)
     println("${layer.handlers.size} packets")
 
-    println("Dump file path: ")
+    print("Dump file path: ")
     val path = readln()
     val bytes = File(path).readBytes()
     val response = format.decodeFromByteArray<GameLoginResponse>(bytes)
