@@ -41,7 +41,7 @@ fun main() {
 
     listOf(requests, responses).forEach { dict ->
         dict.forEach { (packetId, files) ->
-            println(layer.handlers[packetId.toInt()]?.requestName + " %02x".format(packetId.toInt()) + ": " + files.joinToString())
+            println(layer.handlers[packetId.toInt()].requestName + " %02x".format(packetId.toInt()) + ": " + files.joinToString())
         }
         println()
         println()

@@ -17,9 +17,9 @@ val json = Json {
 }
 
 fun main() {
-    val ver = SerializationVersion(47u, 1u, 0u)
+    print("Current version: ")
+    val ver = SerializationVersion(readln())
     val format = RoadblockFormat(ver)
-    println("Current version: $ver")
     val layer = GameLayer(".", ver)
     println("${layer.handlers.size} packets")
 
