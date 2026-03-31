@@ -4,8 +4,8 @@ import moe.crx.roadblock.game.GameLayer
 import moe.crx.roadblock.game.serialization.SerializationVersion
 import java.io.File
 
-fun scanBinary(binaryPath: String): List<String> {
-    val startSequence = "LoginRequest, ".toByteArray()
+fun scanBinary(binaryPath: String, start: String): List<String> {
+    val startSequence = start.toByteArray()
     val binaryFile = File(binaryPath)
     val bytes = binaryFile.readBytes()
 
@@ -51,7 +51,12 @@ fun main() {
 
     print("Binary path: ")
     val binaryPath = readln()
-    val binaryRequests = scanBinary(binaryPath)
+    var binaryRequests = scanBinary(binaryPath, "LoginRequest, ")
+
+    if (binaryRequests.isEmpty()) {
+        binaryRequests = scanBinary(binaryPath, "LoginResult, ")
+            .map { it.substringBeforeLast("Result") + "Request" }
+    }
 
     if (binaryRequests.size != layerRequests.size) {
         println("wrong size (${binaryRequests.size} / ${layerRequests.size})")
