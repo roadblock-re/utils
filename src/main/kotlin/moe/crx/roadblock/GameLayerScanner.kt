@@ -47,7 +47,7 @@ fun main() {
     val version = readln() // TODO Autodetect from binary
     val serVersion = SerializationVersion(version)
     val gameLayer = GameLayer(".", serVersion)
-    val layerRequests = gameLayer.handlers.map { it?.requestName }.toMutableList()
+    val layerRequests = gameLayer.handlers.map { it.requestName }.toMutableList()
 
     print("Binary path: ")
     val binaryPath = readln()
