@@ -28,6 +28,7 @@ fun main() {
     val bytes = File(path).readBytes()
     val response = format.decodeFromByteArray<GameLoginResponse>(bytes)
     println()
+    println("Serialization version from save: ${response.serializationVersion}")
 
     val dir = File(File("exported-save"), ver.toString())
     dir.mkdirs()
