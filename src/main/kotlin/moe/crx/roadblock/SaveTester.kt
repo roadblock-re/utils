@@ -33,7 +33,7 @@ fun main() {
     val dir = File(File("exported-save"), ver.toString())
     dir.mkdirs()
 
-    json.encodeToString(response).let { File(dir, "savedgame.json").writeText(it) }
+    json.encodeToString(response.state).let { File(dir, "savedgame.json").writeText(it) }
 
     File(dir, "clientconfig.json").writeBytes(response.configData.data.bytes)
     response.serverDBs.gameDb?.let { File(dir, "A9-business.gdb").writeBytes(it.data.bytes) }
