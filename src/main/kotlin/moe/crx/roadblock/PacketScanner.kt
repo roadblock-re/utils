@@ -11,7 +11,8 @@ import java.io.File
 import kotlin.math.min
 
 fun main() {
-    val ver = SerializationVersion(47u, 1u, 0u)
+    print("Game version: ")
+    val ver = SerializationVersion(readln())
     val layer = GameLayer(".", ver)
     val format = RoadblockFormat(ver)
     val requests = mutableMapOf<UShort, MutableList<File>>()
