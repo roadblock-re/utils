@@ -3,8 +3,10 @@ package moe.crx.roadblock
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import moe.crx.roadblock.core.scope
+import moe.crx.roadblock.core.utils.fromBigEndian
 import moe.crx.roadblock.core.utils.fromHexString
-import moe.crx.roadblock.core.utils.toBigEndianBytes
+import moe.crx.roadblock.core.utils.fromLittleEndian
+import moe.crx.roadblock.core.utils.toBigEndian
 import org.bouncycastle.crypto.engines.ChaCha7539Engine
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
@@ -70,19 +72,19 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
                     val decrypt = evpBytesToKey((roomId + slot).toByteArray(), clientSalt).let { (key, iv) ->
                         ChaCha7539Engine().apply {
                             init(false, ParametersWithIV(KeyParameter(key), iv.takeLast(12).toByteArray()))
-                            skip((iv.take(4).toByteArray().toLittleEndianInt().toLong() and 0xFFFFFFFFL) * 64.toLong())
+                            skip((iv.take(4).toByteArray().fromLittleEndian().toLong() and 0xFFFFFFFFL) * 64.toLong())
                         }
                     }
                     val clientEncrypt = evpBytesToKey((roomId + slot).toByteArray(), clientSalt).let { (key, iv) ->
                         ChaCha7539Engine().apply {
                             init(true, ParametersWithIV(KeyParameter(key), iv.takeLast(12).toByteArray()))
-                            skip((iv.take(4).toByteArray().toLittleEndianInt().toLong() and 0xFFFFFFFFL) * 64.toLong())
+                            skip((iv.take(4).toByteArray().fromLittleEndian().toLong() and 0xFFFFFFFFL) * 64.toLong())
                         }
                     }
                     val serverDecrypt = evpBytesToKey((roomId + slot).toByteArray(), serverSalt).let { (key, iv) ->
                         ChaCha7539Engine().apply {
                             init(false, ParametersWithIV(KeyParameter(key), iv.takeLast(12).toByteArray()))
-                            skip((iv.take(4).toByteArray().toLittleEndianInt().toLong() and 0xFFFFFFFFL) * 64.toLong())
+                            skip((iv.take(4).toByteArray().fromLittleEndian().toLong() and 0xFFFFFFFFL) * 64.toLong())
                         }
                     }
 
@@ -98,7 +100,7 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
 
                         clientEncrypt.processBytes(bytes.copyOf(), 0, bytes.size, bytes, 0)
 
-                        serverOutput.write(header.toBigEndianBytes())
+                        serverOutput.write(header.toBigEndian())
                         serverOutput.write(bytes)
                         serverOutput.flush()
                     }
@@ -124,7 +126,7 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
                             headerBytes += input.readNBytes(4 - headerBytes.size)
                         }
 
-                        var header = headerBytes.toBigEndianInt()
+                        var header = headerBytes.fromBigEndian()
                         var length = header and 0xFFFFFFF
                         var type = header ushr 0x1C
                         var bytes = ByteArray(0)
@@ -143,12 +145,13 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
                         serverOutput.flush()
 
                         if (type == 1) {
-                            val hash = bytes.take(4).toByteArray().toBigEndianInt()
-                            val decompressedLength = bytes.drop(4).take(4).toByteArray().toBigEndianInt()
+                            val hash = bytes.take(4).toByteArray().fromBigEndian()
+                            val decompressedLength = bytes.drop(4).take(4).toByteArray().fromBigEndian()
+                            val reversedLength = bytes.drop(4).take(4).toByteArray().fromLittleEndian()
                             val compressedBytes = bytes.drop(8).toByteArray()
 
                             val calculatedHash =
-                                xxHash32.hash(compressedBytes, 0, compressedBytes.size, decompressedLength)
+                                xxHash32.hash(compressedBytes, 0, compressedBytes.size, reversedLength)
                             check(hash == calculatedHash)
 
                             bytes = safeDecompressor.decompress(compressedBytes, decompressedLength)
@@ -165,7 +168,7 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
                             headerBytes += serverInput.readNBytes(4 - headerBytes.size)
                         }
 
-                        header = headerBytes.toBigEndianInt()
+                        header = headerBytes.fromBigEndian()
                         length = header and 0xFFFFFFF
                         type = header ushr 0x1C
                         bytes = ByteArray(0)
@@ -181,17 +184,13 @@ fun tcpMitmServer(originalHost: String, originalPort: Int, wait: Boolean): Job {
                         serverDecrypt.processBytes(bytes.copyOf(), 0, bytes.size, bytes, 0)
 
                         if (type == 1) {
-                            val hash = bytes.take(4).toByteArray().toBigEndianInt()
-                            val decompressedLength = bytes.drop(4).take(4).toByteArray().toBigEndianInt()
+                            val hash = bytes.take(4).toByteArray().fromBigEndian()
+                            val decompressedLength = bytes.drop(4).take(4).toByteArray().fromBigEndian()
+                            val reversedLength = bytes.drop(4).take(4).toByteArray().fromLittleEndian()
                             val compressedBytes = bytes.drop(8).toByteArray()
 
                             val calculatedHash =
-                                xxHash32.hash(
-                                    compressedBytes,
-                                    0,
-                                    compressedBytes.size,
-                                    bytes.drop(4).take(4).toByteArray().toLittleEndianInt()
-                                )
+                                xxHash32.hash(compressedBytes, 0, compressedBytes.size, reversedLength)
                             check(hash == calculatedHash)
 
                             bytes = safeDecompressor.decompress(compressedBytes, decompressedLength)

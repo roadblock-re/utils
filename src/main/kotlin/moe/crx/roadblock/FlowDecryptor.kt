@@ -5,6 +5,8 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import moe.crx.ktnetstring.KtNetString
+import moe.crx.roadblock.core.utils.fromBigEndian
+import moe.crx.roadblock.core.utils.fromLittleEndian
 import net.jpountz.lz4.LZ4Factory
 import net.jpountz.lz4.LZ4SafeDecompressor
 import net.jpountz.xxhash.XXHash32
@@ -16,24 +18,6 @@ import java.io.DataInputStream
 import java.io.File
 import java.io.InputStream
 import java.security.MessageDigest
-
-fun ByteArray.toBigEndianInt(): Int {
-    val bytes = take(4).map { it.toInt() and 0xFF }.reversed()
-    val ch1 = bytes[0]
-    val ch2 = bytes[1] shl 8
-    val ch3 = bytes[2] shl 16
-    val ch4 = bytes[3] shl 24
-    return ch1 or ch2 or ch3 or ch4
-}
-
-fun ByteArray.toLittleEndianInt(): Int {
-    val bytes = take(4).map { it.toInt() and 0xFF }
-    val ch1 = bytes[0]
-    val ch2 = bytes[1] shl 8
-    val ch3 = bytes[2] shl 16
-    val ch4 = bytes[3] shl 24
-    return ch1 or ch2 or ch3 or ch4
-}
 
 fun evpBytesToKey(
     password: ByteArray,
@@ -94,13 +78,13 @@ fun setupEncryption() {
     decrypt = evpBytesToKey((roomId + slot).toByteArray(), clientSalt).let { (key, iv) ->
         ChaCha7539Engine().apply {
             init(false, ParametersWithIV(KeyParameter(key), iv.takeLast(12).toByteArray()))
-            skip((iv.take(4).toByteArray().toLittleEndianInt().toLong() and 0xFFFFFFFFL) * 64.toLong())
+            skip((iv.take(4).toByteArray().fromLittleEndian().toLong() and 0xFFFFFFFFL) * 64.toLong())
         }
     }
     encrypt = evpBytesToKey((roomId + slot).toByteArray(), serverSalt).let { (key, iv) ->
         ChaCha7539Engine().apply {
             init(false, ParametersWithIV(KeyParameter(key), iv.takeLast(12).toByteArray()))
-            skip((iv.take(4).toByteArray().toLittleEndianInt().toLong() and 0xFFFFFFFFL) * 64.toLong())
+            skip((iv.take(4).toByteArray().fromLittleEndian().toLong() and 0xFFFFFFFFL) * 64.toLong())
         }
     }
 }
@@ -128,7 +112,7 @@ fun DataInputStream.readPacket(): Packet {
 val exported = File("exported")
 
 fun processHcyPacket(packet: Packet, dis: DataInputStream?) {
-    val header = packet.transfer.take(4).toByteArray().toBigEndianInt()
+    val header = packet.transfer.take(4).toByteArray().fromBigEndian()
     val length = header and 0xFFFFFFF
     val type = header ushr 0x1C
     var bytes = packet.transfer.drop(4).take(length).toByteArray()
@@ -160,11 +144,12 @@ fun processHcyPacket(packet: Packet, dis: DataInputStream?) {
     }
 
     if (type == 1) {
-        val hash = bytes.take(4).toByteArray().toBigEndianInt()
-        val decompressedLength = bytes.drop(4).take(4).toByteArray().toBigEndianInt()
+        val hash = bytes.take(4).toByteArray().fromBigEndian()
+        val decompressedLength = bytes.drop(4).take(4).toByteArray().fromBigEndian()
+        val reversedLength = bytes.drop(4).take(4).toByteArray().fromLittleEndian()
         val compressedBytes = bytes.drop(8).toByteArray()
 
-        val calculatedHash = xxHash32.hash(compressedBytes, 0, compressedBytes.size, decompressedLength)
+        val calculatedHash = xxHash32.hash(compressedBytes, 0, compressedBytes.size, reversedLength)
         check(hash == calculatedHash)
 
         bytes = safeDecompressor.decompress(compressedBytes, decompressedLength)
@@ -293,7 +278,7 @@ fun processFlows(fileName: String) {
 }
 
 fun processFlowPacket(input: InputStream, index: Int, fromClient: Boolean): Boolean {
-    val header = input.readNBytes(4).toBigEndianInt()
+    val header = input.readNBytes(4).fromBigEndian()
     val length = header and 0xFFFFFFF
     val type = header ushr 0x1C
     var bytes = input.readNBytes(length)
@@ -309,22 +294,13 @@ fun processFlowPacket(input: InputStream, index: Int, fromClient: Boolean): Bool
     }
 
     if (type == 1) {
-        val hash = bytes.take(4).toByteArray().toBigEndianInt()
-        val decompressedLength = bytes.drop(4).take(4).toByteArray().toBigEndianInt()
+        val hash = bytes.take(4).toByteArray().fromBigEndian()
+        val decompressedLength = bytes.drop(4).take(4).toByteArray().fromBigEndian()
+        val reversedLength = bytes.drop(4).take(4).toByteArray().fromLittleEndian()
         val compressedBytes = bytes.drop(8).toByteArray()
 
-        val calculatedHash = xxHash32.hash(
-            compressedBytes, 0, compressedBytes.size, if (fromClient) {
-                bytes.drop(4).take(4).toByteArray().toBigEndianInt()
-            } else {
-                bytes.drop(4).take(4).toByteArray().toLittleEndianInt()
-            }
-        )
-
-        if (hash != calculatedHash) {
-            // FIXME
-            println("Hash mismatch: $hash != $calculatedHash")
-        }
+        val calculatedHash = xxHash32.hash(compressedBytes, 0, compressedBytes.size, reversedLength)
+        check(hash == calculatedHash)
 
         bytes = safeDecompressor.decompress(compressedBytes, decompressedLength)
     }
